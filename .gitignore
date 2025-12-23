@@ -1,5 +1,5 @@
 /__pycache__
-/data
+*database.pt
 test.ipynb
 /saved_models_run1
 *.pth
