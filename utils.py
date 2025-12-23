@@ -9,8 +9,6 @@ import torch
 import numpy as np
 from transformers.models.t5.configuration_t5 import T5Config
 
-from model import T5ForPretrain
-
 
 def set_seed(seed: int = 42, deterministic: bool = True) -> int:
     """
@@ -65,40 +63,82 @@ def get_time() -> str:
     return datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 
 def get_args(file_name: str):
+    # First, parse just model_version and num_samples to determine which config to load
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    pre_parser.add_argument("--model_version", type=str, default="v1", choices=["v1", "v2"])
+    pre_parser.add_argument("--num_samples", type=str, default="10K", choices=["10K", "100K"])
+    pre_args, _ = pre_parser.parse_known_args()
+    
+    # Load default config based on model_version
+    default_config = {}
+    if pre_args.model_version == "v1":
+        # For v1 (baseline): load from saved_models/{num_samples}_default_config.json
+        default_config_path = Path("./saved_models") / f"{pre_args.num_samples}_default_config.json"
+    else:  # v2
+        # For v2: load from saved_models_v2/{num_samples}/config.json
+        default_config_path = Path("./saved_models_v2") / pre_args.num_samples / "config.json"
+    
+    if default_config_path.exists():
+        with open(default_config_path, 'r') as f:
+            default_config = json.load(f)
+    
+    # Now create the full parser with config values as defaults
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--random_seed", type=int, default=42)
+    parser.add_argument("--random_seed", type=int, default=default_config.get("random_seed", 42))
 
-    parser.add_argument("--save_path", type=str, default="./saved_models")
-    parser.add_argument("--dataset_path", type=str, default="./data")
+    parser.add_argument("--save_path", type=str, default=default_config.get("save_path", "./saved_models"))
+    parser.add_argument("--dataset_path", type=str, default=default_config.get("dataset_path", "./data"))
 
     # model config
-    parser.add_argument("--d_ff", type=int, default=3072)
-    parser.add_argument("--d_kv", type=int, default=64)
-    parser.add_argument("--num_layers", type=int, default=12)
-    parser.add_argument("--num_heads", type=int, default=12)
-    parser.add_argument("--dropout_rate", type=float, default=0.1)
+    parser.add_argument(
+        "--model_version",
+        type=str,
+        default=default_config.get("model_version", "v1"),
+        choices=["v1", "v2"],
+        help="Choose backbone: v1 uses model.py (default), v2 uses model_v2.py",
+    )
+    parser.add_argument("--d_ff", type=int, default=default_config.get("d_ff", 3072))
+    parser.add_argument("--d_kv", type=int, default=default_config.get("d_kv", 64))
+    parser.add_argument("--num_layers", type=int, default=default_config.get("num_layers", 12))
+    parser.add_argument("--num_heads", type=int, default=default_config.get("num_heads", 12))
+    parser.add_argument("--dropout_rate", type=float, default=default_config.get("dropout_rate", 0.1))
 
-    parser.add_argument("--epochs", type=int, default=500)
-    parser.add_argument("--num_samples", type=str, default="10K", choices=["10K", "100K"])
+    parser.add_argument("--epochs", type=int, default=default_config.get("epochs", 500))
+    parser.add_argument("--num_samples", type=str, default=default_config.get("num_samples", "10K"), choices=["10K", "100K"])
 
     if file_name == "train.py":
-        parser.add_argument("--batch_size", type=int, default=500)  # 1000 for 100K
-        parser.add_argument("--learning_rate", type=float, default=5e-4)
-        parser.add_argument("--warmup_ratio", type=float, default=0.1)
+        parser.add_argument("--batch_size", type=int, default=default_config.get("batch_size", 500))
+        parser.add_argument("--learning_rate", type=float, default=default_config.get("learning_rate", 5e-4))
+        parser.add_argument("--warmup_ratio", type=float, default=default_config.get("warmup_ratio", 0.1))
 
     if file_name == "evaluate.py":
-        parser.add_argument("--batch_size", type=int, default=100)
-        parser.add_argument("--num_beams", type=int, default=20)
-        parser.add_argument("--noise_factor", type=float, default=0.0)
+        parser.add_argument("--batch_size", type=int, default=default_config.get("batch_size", 100))
+        parser.add_argument("--num_beams", type=int, default=default_config.get("num_beams", 20))
+        parser.add_argument("--noise_factor", type=float, default=default_config.get("noise_factor", 0.0))
 
     # PQ
-    parser.add_argument("--num_subspace", type=int, default=4)      # M
-    parser.add_argument("--num_clusters", type=int, default=128)    # K
+    parser.add_argument("--num_subspace", type=int, default=default_config.get("num_subspace", 4))
+    parser.add_argument("--num_clusters", type=int, default=default_config.get("num_clusters", 128))
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    
+    # Load v2-specific parameters from config only when using v2
+    if args.model_version == "v2" and default_config:
+        v2_params = {
+            "label_smoothing": default_config.get("label_smoothing", 0.1),
+            "temperature": default_config.get("temperature", 1.0),
+            "proj_dropout": default_config.get("proj_dropout", 0.1),
+            "loss_type": default_config.get("loss_type", "label_smoothing"),
+            "retrieval_loss_weight": default_config.get("retrieval_loss_weight", 0.0),
+            "use_subspace_heads": default_config.get("use_subspace_heads", False)
+        }
+        for key, value in v2_params.items():
+            setattr(args, key, value)
+    
+    return args
 
-def save_model(model: T5ForPretrain, save_dir: str, name: str) -> None:
+def save_model(model: torch.nn.Module, save_dir: str, name: str) -> None:
     os.makedirs(save_dir, exist_ok=True)
     torch.save(model.state_dict(), Path(save_dir)/f"{name}.pth")
 
@@ -107,8 +147,14 @@ def save_config(args, save_dir: str) -> None:
     with open(Path(save_dir)/"config.json", "w") as f:
         json.dump(vars(args), f, indent=4)
 
-def load_model(args) -> T5ForPretrain:
+def load_model(args) -> torch.nn.Module:
     from dataset import Sift1mDataset
+    # Select implementation based on user choice
+    if getattr(args, "model_version", "v1") == "v2":
+        from model_v2 import T5ForPretrain as T5ForPretrainImpl
+    else:
+        from model import T5ForPretrain as T5ForPretrainImpl
+
     config = T5Config(
         is_encoder_decoder=False,
         vocab_size=args.num_clusters,
@@ -119,7 +165,7 @@ def load_model(args) -> T5ForPretrain:
         num_heads=args.num_heads,
         dropout_rate=args.dropout_rate,
     )
-    model = T5ForPretrain(config, args)
+    model = T5ForPretrainImpl(config, args)
     return model
 
 def plot_loss(losses: List[float], save_dir: str = None) -> None:

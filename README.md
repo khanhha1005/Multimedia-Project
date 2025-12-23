@@ -9,6 +9,7 @@
 ├── dataset.py                 # Dataset loading and preprocessing script
 ├── evaluate.py                # Evaluation script
 ├── model.py                   # Model definition
+├── model_v2.py                # Proposed Model definition
 ├── README.md                  # Project description and instructions
 ├── requirements.txt           # Python dependencies
 ├── train.py                   # Model training script
@@ -29,12 +30,25 @@ pip install -r requirements.txt
     * For 10K, R@1: 0.387, R@10: 0.741, R@20: 0.808
     * For 100K, R@1: 0.443, R@10: 0.682, R@20: 0.724
 * To change the configuration, edit the `get_args()` function in `utils.py`.
-
-```
-python train.py --num_samples 10K
-```
-
-## Run Evaluation
-```
-python evaluate.py --num_samples 10K --noise_factor 0.0
-```
+### Baseline (model.py)
+- Train  
+  ```
+  python train.py --num_samples 10K
+  python train.py --num_samples 100K
+  ```
+- Evaluate (set `--noise_factor` as needed)  
+  ```
+  python evaluate.py --num_samples 10K --noise_factor 0.0
+  python evaluate.py --num_samples 10K --noise_factor 0.06
+  python evaluate.py --num_samples 100K --noise_factor 0.0
+  python evaluate.py --num_samples 100K --noise_factor 0.06
+  ```
+### Proposed (model_v2.py)
+- Train  
+  - `python train.py --model_version v2 --num_samples 10K`
+  - `python train.py --model_version v2 --num_samples 100K`
+- Evaluate  
+  - `python evaluate.py --model_version v2 --num_samples 10K --noise_factor 0.0`
+  - `python evaluate.py --model_version v2 --num_samples 10K --noise_factor 0.06`
+  - `python evaluate.py --model_version v2 --num_samples 100K --noise_factor 0.0`
+  - `python evaluate.py --model_version v2 --num_samples 100K --noise_factor 0.06`

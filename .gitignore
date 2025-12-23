@@ -1,6 +1,8 @@
 /__pycache__
-/saved_models
 /data
 test.ipynb
 /saved_models_run1
-
+*.pth
+*.npy
+*.png
+*id_table.json

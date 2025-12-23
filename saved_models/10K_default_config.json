@@ -1,0 +1,16 @@
+{
+    "save_path": "./saved_models",
+    "dataset_path": "./data",
+    "d_ff": 3072,
+    "d_kv": 64,
+    "num_layers": 12,
+    "num_heads": 12,
+    "dropout_rate": 0.1,
+    "epochs": 500,
+    "num_samples": "10K",
+    "batch_size": 500,
+    "learning_rate": 0.0005,
+    "warmup_ratio": 0.1,
+    "num_subspace": 4,
+    "num_clusters": 128
+}

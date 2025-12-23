@@ -8,7 +8,6 @@ from torch import Tensor, LongTensor
 from torch.utils.data import DataLoader
 
 from dataset import Sift1mDataset, Feature
-from model import T5ForPretrain
 from trie import Trie
 from utils import load_model, get_args, set_seed
 
@@ -39,7 +38,7 @@ class Metric:
 
 
 @torch.no_grad()
-def constrained_beam_search(model: T5ForPretrain, codebooks: Tensor, q: Tensor, args, prefix_allowed_token_fn: Callable[[List[int]], List[int]]) -> LongTensor:
+def constrained_beam_search(model: torch.nn.Module, codebooks: Tensor, q: Tensor, args, prefix_allowed_token_fn: Callable[[List[int]], List[int]]) -> LongTensor:
     def _sort_beams(
         beams: List[Tuple[LongTensor, Tensor]]
     ) -> Tuple[LongTensor, List[Tuple[LongTensor, Tensor]]]:
