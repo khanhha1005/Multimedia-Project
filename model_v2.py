@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers.modeling_outputs import Seq2SeqLMOutput
-from transformers import T5ForConditionalGeneratT5ForConditionalGenerationion
+from transformers import T5ForConditionalGeneration
 from transformers.models.t5.configuration_t5 import T5Config
 
 from dataset import Sift1mDataset
